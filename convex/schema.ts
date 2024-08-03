@@ -6,8 +6,19 @@ export const newproductSchema = {
   name: v.string(),
   price: v.number(),
   images: v.array(v.string()),
-  imageStorageIds: v.array(v.string()), // Changed from v.id("_storage") to v.string()
+  category: v.string(),
+  isFeatured: v.boolean(),
+  phoneNumber: v.string(),
 };
+
+
+
+// export const messageSchema = defineTable({
+//   text: v.string(),
+//   author: v.string(),
+//   body: v.string(),
+//   format: v.optional(v.string()), // Add this line if 'format' is required
+// });
 
 export default defineSchema({
   users: defineTable({

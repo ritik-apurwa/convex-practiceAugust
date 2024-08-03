@@ -1,6 +1,9 @@
 import React from "react";
 import { Control, Controller } from "react-hook-form";
 import { IconType } from "react-icons";
+import PhoneInput from "react-phone-number-input";
+import { E164Number } from "libphonenumber-js/core";
+import "react-phone-number-input/style.css";
 import {
   FormControl,
   FormField,
@@ -18,7 +21,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "../ui/select";
-import UploadImages from "./image-upload";
 
 export enum FormType {
   INPUT = "input",
@@ -28,6 +30,7 @@ export enum FormType {
   NUMBER_INPUT = "numberInput",
   SKELETON = "skeleton",
   IMAGEUPLOAD = "imageUpload",
+  PHONE_INPUT = "phoneInput",
 }
 
 interface FormProps {
@@ -50,6 +53,22 @@ const RenderInput = ({ field, props }: { field: any; props: FormProps }) => {
   const Icon: IconType | undefined = props.icon;
 
   switch (props.formType) {
+    case FormType.PHONE_INPUT:
+      const phoneValue = typeof field.value === 'string' ? field.value : undefined;
+      return (
+        <FormControl>
+          <PhoneInput
+            defaultCountry="IN"
+            placeholder={props.placeholder}
+            international
+            withCountryCallingCode
+            value={phoneValue}
+            onChange={(value) => field.onChange(value || undefined)}
+            className="border h-10 px-3 rounded-md shadow-sm gap-x-2"
+          />
+        </FormControl>
+      );
+
     case FormType.NUMBER_INPUT:
       return (
         <FormControl>
@@ -108,14 +127,6 @@ const RenderInput = ({ field, props }: { field: any; props: FormProps }) => {
             </Label>
           </div>
         </FormControl>
-      );
-    case FormType.IMAGEUPLOAD:
-      return (
-        <UploadImages
-          setImages={(images) => field.onChange(images)}
-          setImageStorageIds={() => {}}
-          images={field.value || []}
-        />
       );
 
     case FormType.SELECT:

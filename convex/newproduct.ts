@@ -12,13 +12,22 @@ export const getUrl = mutation({
   },
 });
 
+
+ 
+export const generateUploadUrl = mutation({
+  args: {
+  },
+  handler: async (ctx, args) => {
+    return await ctx.storage.generateUploadUrl();
+  },
+});
+
 export const createProduct = mutation({
   args: newproductSchema,
   handler: async (ctx, args) => {
-    const { imageStorageIds, ...rest } = args;
+    const { ...rest } = args;
     const productId = await ctx.db.insert("newproduct", {
       ...rest,
-      imageStorageIds,
     });
     return productId;
   },
@@ -27,10 +36,9 @@ export const createProduct = mutation({
 export const updateProduct = mutation({
   args: { id: v.id("newproduct"), ...newproductSchema },
   handler: async (ctx, args) => {
-    const { id, imageStorageIds, ...updates } = args;
+    const { id, ...updates } = args;
     await ctx.db.patch(id, {
       ...updates,
-      imageStorageIds,
     });
     return id;
   },

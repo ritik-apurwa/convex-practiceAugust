@@ -1,13 +1,13 @@
-import { Dispatch, SetStateAction, useRef, useState } from "react";
-import { Loader2, Upload } from "lucide-react";
+import React, { Dispatch, SetStateAction, useRef, useState } from "react";
+import { Loader2, Upload, X } from "lucide-react";
 import { useMutation } from "convex/react";
 import { useUploadFiles } from "@xixixao/uploadstuff/react";
-
-
 import { Input } from "../ui/input";
 import { Id } from "@/convex/_generated/dataModel";
 import { useToast } from "../ui/use-toast";
 import { api } from "@/convex/_generated/api";
+import { Button } from "../ui/button";
+import Image from "next/image";
 
 export interface UploadImagesProps {
   setImages: Dispatch<SetStateAction<string[]>>;
@@ -23,34 +23,42 @@ const UploadImages = ({
   const [isImageLoading, setIsImageLoading] = useState(false);
   const imageRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
-  const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+  const generateUploadUrl = useMutation(api.newproduct.generateUploadUrl);
   const { startUpload } = useUploadFiles(generateUploadUrl);
   const getImageUrl = useMutation(api.newproduct.getUrl);
 
   const handleImage = async (blobs: Blob[], fileNames: string[]) => {
     setIsImageLoading(true);
+    console.log("Starting image upload...");
 
     try {
       const files = blobs.map(
-        (blob, index) =>
-          new File([blob], fileNames[index], { type: blob.type })
+        (blob, index) => new File([blob], fileNames[index], { type: blob.type })
       );
+      console.log("Files prepared for upload:", files);
+
       const uploaded = await startUpload(files);
+      console.log("Files uploaded:", uploaded);
+
       const storageIds = uploaded.map(
         (upload) => (upload.response as any).storageId
       );
-      setImageStorageIds((prevIds) => [...prevIds, ...storageIds].slice(-3));
+      console.log("Storage IDs obtained:", storageIds);
+
+      setImageStorageIds((prevIds) => (Array.isArray(prevIds) ? [...prevIds, ...storageIds].slice(0, 4) : storageIds.slice(0, 4)));
 
       const imageUrls = await Promise.all(
         storageIds.map((storageId) => getImageUrl({ storageId }))
       );
+      console.log("Image URLs obtained:", imageUrls);
 
       const validImageUrls = imageUrls.filter(
         (url): url is string => url !== null
       );
 
-      setImages((prevImages) => [...prevImages, ...validImageUrls].slice(-3));
-      setIsImageLoading(false);
+      setImages((prevImages) => (Array.isArray(prevImages) ? [...prevImages, ...validImageUrls].slice(0, 4) : validImageUrls.slice(0, 4)));
+      console.log("Updated image URLs state:", validImageUrls);
+
       toast({
         title: "Images uploaded successfully",
       });
@@ -64,6 +72,7 @@ const UploadImages = ({
 
   const uploadImage = async (e: React.ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
+    console.log("Image input change detected");
 
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -75,6 +84,8 @@ const UploadImages = ({
         )
       );
       const fileNames = Array.from(files).map((file) => file.name);
+      console.log("Files and blobs prepared:", { blobs, fileNames });
+
       handleImage(blobs, fileNames);
     } catch (error) {
       console.error("Error processing images:", error);
@@ -82,23 +93,36 @@ const UploadImages = ({
     }
   };
 
+  const deleteImage = (index: number) => {
+    setImages((prevImages) => (Array.isArray(prevImages) ? prevImages.filter((_, i) => i !== index) : []));
+    setImageStorageIds((prevIds) => (Array.isArray(prevIds) ? prevIds.filter((_, i) => i !== index) : []));
+  };
+
   return (
-    <div className="flex flex-wrap items-center justify-center gap-4">
+    <div className="flex flex-wrap items-center justify-start gap-4">
       {images.map((image, index) => (
         <div
           key={index}
-          className="relative lg:w-36 lg:h-36 size-14 border border-gray-300 rounded-lg overflow-hidden"
+          className="relative w-32 h-32 border border-gray-300 rounded-lg overflow-hidden group"
         >
-          <img
+          <Image
+            height={100}
+            width={100}
             src={image}
             className="object-cover w-full h-full"
             alt={`thumbnail ${index + 1}`}
           />
+          <Button
+            className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+            onClick={() => deleteImage(index)}
+          >
+            <X size={16} />
+          </Button>
         </div>
       ))}
-      {images.length < 3 && (
+      {images.length < 4 && (
         <div
-          className="flex flex-col items-center justify-center border-dashed border-2 border-gray-300 p-2 rounded-lg cursor-pointer"
+          className="flex flex-col items-center justify-center w-32 h-32 border-dashed border-2 border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 transition-colors"
           onClick={() => imageRef?.current?.click()}
         >
           <Input
@@ -110,16 +134,16 @@ const UploadImages = ({
             accept="image/*"
           />
           {!isImageLoading ? (
-            <div className="flex flex-col justify-center lg:w-32 lg:h-32 size-14 text-center items-center gap-1">
-              <Upload size={20} className="text-blue-400" />
-              <h2 className="text-sm font-bold text-blue-500">
-                Upload <br /> Image
-              </h2>
+            <div className="flex flex-col justify-center items-center gap-2">
+              <Upload size={24} className="text-blue-500" />
+              <span className="text-sm font-medium text-blue-500">
+                Upload Image
+              </span>
             </div>
           ) : (
-            <div className="flex flex-row gap-x-2 items-center font-sm">
-              <Loader2 className="animate-spin" />
-              <span className="text-xs">Uploading ..</span>
+            <div className="flex flex-col items-center gap-2">
+              <Loader2 size={24} className="animate-spin text-blue-500" />
+              <span className="text-sm font-medium">Uploading...</span>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Product, ProductFormDataNew, ProductZodSchemaNew } from "@/types";
 import {
   AlertDialog,
@@ -21,6 +21,7 @@ import CustomForm, { FormType } from "../providers/custom-form";
 import { api } from "@/convex/_generated/api";
 import { Id } from "@/convex/_generated/dataModel";
 import UploadImages from "../providers/image-upload";
+import { SelectItem } from "../ui/select";
 
 interface ProductControlProps {
   initialData?: Product & { _id: Id<"newproduct"> };
@@ -30,33 +31,42 @@ interface ProductControlProps {
 const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-  const [images, setImages] = useState<string[]>(initialData?.images || []);
+  const [images, setImages] = useState<string[]>([]);
   const [imageStorageIds, setImageStorageIds] = useState<Id<"_storage">[]>([]);
 
   const form = useForm<ProductFormDataNew>({
     resolver: zodResolver(ProductZodSchemaNew),
+    mode: "onChange", // Enable validation on change
     defaultValues:
       type === "create"
-        ? {
-            name: "",
-            price: 0,
-            images: [],
-            imageStorageIds: [],
-          }
+        ? { name: "", price: 0, images: [] }
         : { ...initialData, images: initialData?.images || [] },
   });
+
+  const { isValid } = form.formState;
 
   const createProduct = useMutation(api.newproduct.createProduct);
   const updateProduct = useMutation(api.newproduct.updateProduct);
   const deleteProduct = useMutation(api.newproduct.deleteProduct);
+
+  useEffect(() => {
+    if (type === "update" && initialData) {
+      // Set initial images when updating
+      setImages(initialData.images || []);
+    } else if (type === "create") {
+      // Clear images when creating a new product
+      setImages([]);
+    }
+  }, [type, initialData]);
 
   const handleSubmit = async (values: ProductFormDataNew) => {
     setIsSubmitting(true);
     try {
       const productData = {
         ...values,
-        images: [],
+        images: images, // use the images state
       };
+
       if (type === "create") {
         await createProduct(productData);
       } else if (type === "update" && initialData) {
@@ -64,6 +74,7 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
       } else if (type === "delete" && initialData) {
         await deleteProduct({ id: initialData._id });
       }
+
       form.reset();
       setIsOpen(false);
     } catch (error) {
@@ -76,6 +87,9 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
     if (type === "update" && initialData) {
       form.reset(initialData);
       setImages(initialData.images || []);
+    } else if (type === "create") {
+      form.reset({ name: "", price: 0, images: [] });
+      setImages([]);
     }
     setIsOpen(true);
   };
@@ -124,7 +138,33 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
                   placeholder="Enter product price"
                   formType={FormType.NUMBER_INPUT}
                 />
-
+                <CustomForm
+                  control={form.control}
+                  name="category" // Add your selector field name
+                  label="Category"
+                  placeholder="Select product category"
+                  formType={FormType.SELECT}
+                >
+                  <SelectItem value="electronics">Electronics</SelectItem>
+                  <SelectItem value="furniture">Furniture</SelectItem>
+                  <SelectItem value="clothing">Clothing</SelectItem>
+                </CustomForm>
+                
+                <CustomForm
+                  control={form.control}
+                  name="isFeatured" // Add your checkbox field name
+                  label="Featured"
+                  formType={FormType.CHECKBOX}
+                />
+                <CustomForm
+                  control={form.control}
+                  name="phoneNumber" // Add your checkbox field name
+                  label="Phone Number"
+                  formType={FormType.PHONE_INPUT}
+                  placeholder="555-555-555-3"
+                />
+          
+                
                 <UploadImages
                   setImages={setImages}
                   setImageStorageIds={setImageStorageIds}
@@ -134,7 +174,7 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
             )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction type="submit" disabled={isSubmitting}>
+              <AlertDialogAction type="submit" disabled={isSubmitting || !isValid}>
                 {isSubmitting
                   ? "Processing..."
                   : type.charAt(0).toUpperCase() + type.slice(1)}
