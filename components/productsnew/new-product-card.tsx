@@ -19,8 +19,9 @@ import ProductCrud from "./new-product-control2";
 import Image from "next/image";
 
 interface NewProductCardProps {
-  product: Product & { _id: Id<"newproduct"> };
+  product: Product;
 }
+
 
 const NewProductCard: React.FC<NewProductCardProps> = ({ product }) => {
   const { _id, name, price, category, isFeatured, images } = product;

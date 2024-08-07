@@ -1,9 +1,17 @@
-import ProductsPage from "@/components/productsnew/new-products-page";
+"use client";
+
+import { useStoreUserEffect } from "@/components/providers/auth-status";
+import { SignInButton, SignUpButton } from "@clerk/nextjs";
+import React from "react";
 
 const page = () => {
+  const { isAdmin, isAuthenticated, isLoading } = useStoreUserEffect();
   return (
     <div>
-      <ProductsPage />
+      <SignInButton>Sign in</SignInButton>
+
+      <SignUpButton>sign up</SignUpButton>
+      {isAdmin ? "You are an admin" : "you are not an admin "}
     </div>
   );
 };

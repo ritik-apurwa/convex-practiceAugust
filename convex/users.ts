@@ -1,7 +1,13 @@
 import { ConvexError, v } from "convex/values";
-import { internalMutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 
-export const createUser = internalMutation({
+export const getAll = query({
+  handler: async (ctx) => {
+    return await ctx.db.query("users").collect();
+  },
+});
+
+export const upsertUser = internalMutation({
   args: {
     tokenIdentifier: v.string(),
     email: v.string(),
@@ -9,13 +15,34 @@ export const createUser = internalMutation({
     image: v.string(),
   },
   handler: async (ctx, args) => {
-    await ctx.db.insert("users", {
-      tokenIdentifier: args.tokenIdentifier,
-      email: args.email,
-      name: args.name,
-      image: args.image,
-      isOnline: true,
-    });
+    const existingUser = await ctx.db
+      .query("users")
+      .withIndex("by_tokenIdentifier", (q) =>
+        q.eq("tokenIdentifier", args.tokenIdentifier)
+      )
+      .unique();
+
+    if (existingUser) {
+      // Update existing user
+      await ctx.db.patch(existingUser._id, {
+        name: args.name,
+        email: args.email,
+        image: args.image,
+        isOnline: true,
+      });
+      return { userId: existingUser._id, isAdmin: existingUser.isAdmin };
+    } else {
+      // Create new user
+      const userId = await ctx.db.insert("users", {
+        tokenIdentifier: args.tokenIdentifier,
+        email: args.email,
+        name: args.name,
+        image: args.image,
+        isOnline: true,
+        isAdmin: false, // Default new users to non-admin
+      });
+      return { userId, isAdmin: false };
+    }
   },
 });
 
@@ -75,66 +102,46 @@ export const setUserOffline = internalMutation({
   },
 });
 
-export const getUsers = query({
+export const store = mutation({
   args: {},
-  handler: async (ctx, args) => {
+  handler: async (ctx) => {
     const identity = await ctx.auth.getUserIdentity();
     if (!identity) {
-      throw new ConvexError("Unauthorized");
+      throw new Error("Called storeUser without authentication present");
     }
 
-    const users = await ctx.db.query("users").collect();
-    return users.filter(
-      (user) => user.tokenIdentifier !== identity.tokenIdentifier
-    );
-  },
-});
-
-export const getMe = query({
-  args: {},
-  handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity();
-    if (!identity) {
-      throw new ConvexError("Unauthorized");
-    }
-
-    const user = await ctx.db
+    const existingUser = await ctx.db
       .query("users")
       .withIndex("by_tokenIdentifier", (q) =>
         q.eq("tokenIdentifier", identity.tokenIdentifier)
       )
       .unique();
 
-    if (!user) {
-      throw new ConvexError("User not found");
+    if (existingUser) {
+      // Update existing user
+      await ctx.db.patch(existingUser._id, {
+        name: identity.name ?? existingUser.name,
+        email: identity.email ?? existingUser.email,
+        image: identity.pictureUrl ?? existingUser.image,
+        isOnline: true,
+      });
+      return { userId: existingUser._id, isAdmin: existingUser.isAdmin };
+    } else {
+      // Create new user
+      const userId = await ctx.db.insert("users", {
+        tokenIdentifier: identity.tokenIdentifier,
+        email: identity.email ?? "",
+        name: identity.name ?? "",
+        image: identity.pictureUrl ?? "",
+        isOnline: true,
+        isAdmin: false, // Default new users to non-admin
+      });
+      return { userId, isAdmin: false };
     }
-
-    return user;
   },
 });
 
-// export const getGroupMembers = query({
-//   args: { conversationId: v.id("conversations") },
-//   handler: async (ctx, args) => {
-//     const identity = await ctx.auth.getUserIdentity();
+export function isAdmin(user: any): boolean {
+  return user?.isAdmin ?? false;
+}
 
-//     if (!identity) {
-//       throw new ConvexError("Unauthorized");
-//     }
-
-//     const conversation = await ctx.db
-//       .query("conversations")
-//       .filter((q) => q.eq(q.field("_id"), args.conversationId))
-//       .first();
-//     if (!conversation) {
-//       throw new ConvexError("Conversation not found");
-//     }
-
-//     const users = await ctx.db.query("users").collect();
-//     const groupMembers = users.filter((user) =>
-//       conversation.participants.includes(user._id)
-//     );
-
-//     return groupMembers;
-//   },
-// });

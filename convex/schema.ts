@@ -11,15 +11,6 @@ export const newproductSchema = {
   phoneNumber: v.string(),
 };
 
-
-
-// export const messageSchema = defineTable({
-//   text: v.string(),
-//   author: v.string(),
-//   body: v.string(),
-//   format: v.optional(v.string()), // Add this line if 'format' is required
-// });
-
 export default defineSchema({
   users: defineTable({
     name: v.optional(v.string()),

@@ -22,8 +22,20 @@ export type Product = z.infer<typeof ProductZodSchemaNew> & {
   _creationTime: number;
 };
 
-export type ProductFormDataNew = z.infer<typeof ProductZodSchemaNew>;
+declare type SearchParamProps = {
+  params: { [key: string]: string };
+  searchParams: { [key: string]: string | string[] | undefined };
+};
+export const UserZodSchema = z.object({
+  name: z.string().optional(),
+  email: z.string().email("Invalid email address"),
+  image: z.string().url("Invalid image URL"),
 
-export interface ProductInterface extends ProductFormDataNew {
-  _id: Id<"newproduct">;
-}
+  isAdmin: z.boolean().optional(),
+  passCode: z.number().optional(),
+});
+
+export type User = z.infer<typeof UserZodSchema> & {
+  _id?: Id<"users">;  // Adjust the Id type according to your model
+  _creationTime: Date;
+};

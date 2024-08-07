@@ -21,6 +21,7 @@ const UploadImages = ({
   images,
 }: UploadImagesProps) => {
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // State to track upload progress
   const imageRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const generateUploadUrl = useMutation(api.newproduct.generateUploadUrl);
@@ -37,25 +38,30 @@ const UploadImages = ({
       );
       console.log("Files prepared for upload:", files);
 
-      const uploaded = await startUpload(files);
-      console.log("Files uploaded:", uploaded);
+      let totalProgress = 0;
+      const uploadPromises = files.map((file, index) => {
+        return startUpload([file]).then((uploaded) => {
+          console.log("File uploaded:", uploaded);
 
-      const storageIds = uploaded.map(
-        (upload) => (upload.response as any).storageId
-      );
-      console.log("Storage IDs obtained:", storageIds);
+          const storageId = (uploaded[0].response as any).storageId;
+          console.log("Storage ID obtained:", storageId);
+
+          return getImageUrl({ storageId }).then((url) => {
+            console.log("Image URL obtained:", url);
+            return { url, storageId };
+          });
+        }).finally(() => {
+          totalProgress += 1 / files.length * 100;
+          setUploadProgress(totalProgress);
+        });
+      });
+
+      const results = await Promise.all(uploadPromises);
+      const validResults = results.filter(result => result.url !== null);
+      const storageIds = validResults.map(result => result.storageId);
+      const validImageUrls = validResults.map(result => result.url as string);
 
       setImageStorageIds((prevIds) => (Array.isArray(prevIds) ? [...prevIds, ...storageIds].slice(0, 4) : storageIds.slice(0, 4)));
-
-      const imageUrls = await Promise.all(
-        storageIds.map((storageId) => getImageUrl({ storageId }))
-      );
-      console.log("Image URLs obtained:", imageUrls);
-
-      const validImageUrls = imageUrls.filter(
-        (url): url is string => url !== null
-      );
-
       setImages((prevImages) => (Array.isArray(prevImages) ? [...prevImages, ...validImageUrls].slice(0, 4) : validImageUrls.slice(0, 4)));
       console.log("Updated image URLs state:", validImageUrls);
 
@@ -67,6 +73,7 @@ const UploadImages = ({
       toast({ title: "Error uploading images", variant: "destructive" });
     } finally {
       setIsImageLoading(false);
+      setUploadProgress(0); // Reset progress
     }
   };
 
@@ -94,8 +101,8 @@ const UploadImages = ({
   };
 
   const deleteImage = (index: number) => {
-    setImages((prevImages) => (Array.isArray(prevImages) ? prevImages.filter((_, i) => i !== index) : []));
-    setImageStorageIds((prevIds) => (Array.isArray(prevIds) ? prevIds.filter((_, i) => i !== index) : []));
+    setImages((prevImages) => prevImages.filter((_, i) => i !== index));
+    setImageStorageIds((prevIds) => prevIds.filter((_, i) => i !== index));
   };
 
   return (
@@ -144,6 +151,7 @@ const UploadImages = ({
             <div className="flex flex-col items-center gap-2">
               <Loader2 size={24} className="animate-spin text-blue-500" />
               <span className="text-sm font-medium">Uploading...</span>
+              <span className="text-xs">{uploadProgress.toFixed(2)}%</span>
             </div>
           )}
         </div>

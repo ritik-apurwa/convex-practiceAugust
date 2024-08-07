@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Product, ProductFormDataNew, ProductZodSchemaNew } from "@/types";
+import { Product, ProductZodSchemaNew } from "@/types";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -34,7 +34,7 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
   const [images, setImages] = useState<string[]>([]);
   const [imageStorageIds, setImageStorageIds] = useState<Id<"_storage">[]>([]);
 
-  const form = useForm<ProductFormDataNew>({
+  const form = useForm<Product>({
     resolver: zodResolver(ProductZodSchemaNew),
     mode: "onChange", // Enable validation on change
     defaultValues:
@@ -59,7 +59,7 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
     }
   }, [type, initialData]);
 
-  const handleSubmit = async (values: ProductFormDataNew) => {
+  const handleSubmit = async (values: Product) => {
     setIsSubmitting(true);
     try {
       const productData = {
@@ -149,7 +149,7 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
                   <SelectItem value="furniture">Furniture</SelectItem>
                   <SelectItem value="clothing">Clothing</SelectItem>
                 </CustomForm>
-                
+
                 <CustomForm
                   control={form.control}
                   name="isFeatured" // Add your checkbox field name
@@ -163,8 +163,7 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
                   formType={FormType.PHONE_INPUT}
                   placeholder="555-555-555-3"
                 />
-          
-                
+
                 <UploadImages
                   setImages={setImages}
                   setImageStorageIds={setImageStorageIds}
@@ -174,7 +173,10 @@ const ProductCrud: React.FC<ProductControlProps> = ({ type, initialData }) => {
             )}
             <AlertDialogFooter>
               <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction type="submit" disabled={isSubmitting || !isValid}>
+              <AlertDialogAction
+                type="submit"
+                disabled={isSubmitting || !isValid}
+              >
                 {isSubmitting
                   ? "Processing..."
                   : type.charAt(0).toUpperCase() + type.slice(1)}
